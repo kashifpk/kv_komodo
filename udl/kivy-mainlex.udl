@@ -1,0 +1,170 @@
+# UDL lexer for Kivy.
+#
+# Note: UDL is a state machine and it uses regular expressions to move between
+#       the different language states.
+#
+
+language Kivy
+
+sublanguage Python
+
+################ Boilerplate ################
+
+# Boilerplate - need to start with family set to markup and IN_M_DEFAULT state,
+# we'll later perform a null-transition change to get into the SSL state.
+family markup
+initial IN_M_DEFAULT
+# Null-transition to get into SSL state
+state IN_M_DEFAULT:
+/./ : redo, => IN_SSL_DEFAULT
+
+################ Language Start ################
+
+family ssl # server side language
+
+# Specify the min and max styles we'll be referring to.
+start_style SSL_DEFAULT
+end_style SSL_VARIABLE
+
+# If the language has keywords, specify which style needs to be transformed
+keyword_style SSL_IDENTIFIER => SSL_WORD
+keywords [
+
+        # Keywords
+        "None", "root", "self", "True", "False",
+        'and', 'assert', 'break', 'class', 'continue', 'def', 'del',
+        'elif', 'else', 'except', 'exec', 'finally', 'for', 'from', 'global',
+        'if', 'import', 'in', 'is', 'lambda', 'not', 'or', 'pass', 'print',
+        'raise', 'return', 'try', 'while', 'yield',
+        "Accordion", "AnchorLayout", "BorderImage", "BoxLayout", "Bubble", "BubbleButton", "Button", "PageLayout", "Camera", "Carousel", "CheckBox", "Checkbox", "Codeinput", "Colorpicker", "Dropdown", "Filechooser", "FloatLayout", "GridLayout", "Image", "Label", "Layout", "Listview", "Modalview", "Popup", "ProgressBar", "RelativeLayout", "Rst", "RstDocument", "Scatter", "ScatterLayout", "Screen", "ScreenManager", "ScrollView", "Scrollview", "Selectableview", "Settings", "Slider", "Spinner", "Splitter", "StackLayout", "Stencilview", "Switch", "Tabbedpanel", "TextInput", "ToggleButton", "TreeView", "Treeview", "Video", "Videoplayer", "Vkeyboard", "Widget", "Color", "Line", "Rectangle", "Ellipse",
+        #"active", "anchor_x", "anchor_y", "app", "background_color", "background_down", "background_normal", "bar_color", "bold", "border", "canvas", "canvas.after", "canvas.before", "cap", "center", "center_x", "center_y", "col_default_width", "col_force_default", "color", "cols", "do_rotation", "do_scale", "do_scroll", "do_translation", "font_name", "font_size", "foreground_color", "group", "halign", "height", "id", "left", "max", "min", "multiline", "on_active", "opacity", "orientation", "padding", "points", "pos", "pos_hint", "readonly", "rgb", "rgba", "row_default_height", "row_force_default", "rows", "scroll_x", "scroll_y", "separator_color", "separator_height", "size", "size_hint", "size_hint_x", "size_hint_y", "source", "spacing", "state", "text", "text_size", "texture", "top", "valign", "value", "width",
+        #"on_color", "on_focus", "on_node_collapse", "on_node_expand", "on_pause", "on_press", "on_release", "on_resume", "on_size", "on_text", "on_texture_size", "on_touch_down", "on_touch_up", "on_value", "on_collapse", "on_collapse_alpha", "on_pos", "on_background_image", "on_background_color", "on_orientation", "on_arrow_image", "on_arrow_pos", "on_touch_move", "on_tex", "on_play", "on_index", "on_slides", "on_offset", "on_checkbox_active", "on_group", "on_lexer", "on_foreground_color", "on_origin", "on_radius", "on_hsv", "on_hsv", "on_select", "on_entry_added", "on_entries_cleared", "on_subentry_to_entry", "on_remove_subentry", "on_submit", "on_children", "on_anim_delay", "on_texture", "on_nocache", "on_ref_press", "on_scroll_complete", "on_anim_alpha", "on_open", "on_dismiss", "on_content", "on_container", "on_source", "on_transform", "on_pre_enter", "on_enter", "on_pre_leave", "on_leave", "on_complete", "on_progress", "on_current", "on_viewport", "on_effect_x", "on_effect_y", "on_effect_cls", "on_panel", "on_config", "on_menu", "on_close", "on_config_change", "on_is_open", "on_sizable_from", "on_do_default_tab", "on_default_tab_text", "on_tab_width", "on_tab_height", "on_tab_pos", "on_parent", "on_text_validate", "on_double_tap", "on_triple_tap", "on_quad_touch", "on_readonly", "on_cursor", "on_hint_text", "on_padding_x", "on_padding_y", "on_load_func", "on_root_options", "on_position_change", "on_duration_change", "on_state", "on_volume", "on_video", "on_alpha", "on_annotation", "on_position", "on_fullscreen", "on_key_down", "on_key_up", "on_opacity"
+
+        ]
+
+
+pattern CS = '\w_'               # inside cset
+pattern WS = '\s\t\r\n'            # inside cset
+pattern NMCHAR = '$CS'
+pattern NMSTART = 'a-zA-Z_'
+pattern OP = '~!@%^&*()-=+[\]{}\\|;:,.<>/?'
+
+initial IN_SSL_DEFAULT
+
+state IN_SSL_DEFAULT:
+'#:' : paint(upto, SSL_DEFAULT), => IN_SSL_DEFAULT
+'#' : paint(upto, SSL_DEFAULT), => IN_SSL_COMMENT
+/[$NMSTART]/ : paint(upto, SSL_DEFAULT), => IN_SSL_IDENTIFIER_1
+#/[$NMSTART]\:/ : paint(upto, SSL_DEFAULT), => IN_SSL_IDENTIFIER_1
+#/[^:]+/ : paint(upto, SSL_DEFAULT), => IN_SSL_COMMENT
+'/<[[$NMSTART]]>/' : paint(upto, SSL_DEFAULT), => IN_SSL_NUMBER_1
+
+# Allow an 'r' before the string, but don't do anything special
+# with it in the string.  Backslashes are still sometimes
+# escape characters in raw strings as well, so it never hurts
+# to handle them there.
+
+# Remember to match long sequences before prefixes of them.
+# If we try matching /'/ before attempting /'''/, we'll
+# always use the first hit.
+
+/[rRuU]*'''/ : paint(upto, SSL_DEFAULT), => IN_SSL_TRIPLE_SSTRING
+/[rRuU]*"""/ : paint(upto, SSL_DEFAULT), => IN_SSL_TRIPLE_DSTRING
+/[rRuU]*'/ : paint(upto, SSL_DEFAULT), => IN_SSL_SSTRING
+/[rRuU]*"/ : paint(upto, SSL_DEFAULT), => IN_SSL_DSTRING
+
+/0[Xx][0-9a-fA-F]+/ : paint(upto, SSL_DEFAULT), paint(include, SSL_NUMBER)
+/0[0-7]+/ : paint(upto, SSL_DEFAULT), paint(include, SSL_NUMBER)
+/\d/ : paint(upto, SSL_DEFAULT), => IN_SSL_NUMBER_1
+/\.\d/ : paint(upto, SSL_DEFAULT), => IN_SSL_NUMBER_2
+
+/[$WS]+/  : #stay
+/[$OP]/  : paint(upto, SSL_DEFAULT), paint(include, SSL_OPERATOR)
+################ Numeric Literals ################
+
+# Digits, before seeing a '.' or exponent-start
+state IN_SSL_NUMBER_1:
+'.'   : => IN_SSL_NUMBER_2
+/[Ll]/: paint(include, SSL_NUMBER), => IN_SSL_DEFAULT
+/[Ee][-\+]?/: => IN_SSL_NUMBER_3
+/\D/: paint(upto, SSL_NUMBER), redo, => IN_SSL_DEFAULT
+
+# In the fractional part
+state IN_SSL_NUMBER_2:
+/[Ee][-\+]?/: => IN_SSL_NUMBER_3
+/\D/: paint(upto, SSL_NUMBER), redo, => IN_SSL_DEFAULT
+
+state IN_SSL_NUMBER_3:
+/\D/: paint(upto, SSL_NUMBER), redo, => IN_SSL_DEFAULT
+
+################ Identifiers ################
+
+state IN_SSL_IDENTIFIER_1:
+'.' : paint(upto, SSL_IDENTIFIER), paint(include, SSL_OPERATOR)
+/[^$NMCHAR]/ : paint(upto, SSL_IDENTIFIER), redo, => IN_SSL_DEFAULT
+
+################ Comments ################
+
+state IN_SSL_COMMENT:
+/$/ : paint(upto, SSL_COMMENT), => IN_SSL_DEFAULT
+
+################ Strings ################
+
+# In triple-quoted strings we only need to handle escapes
+
+state IN_SSL_TRIPLE_SSTRING:
+"\\'" : # ""
+"'''" : paint(upto, SSL_STRING), => IN_SSL_DEFAULT
+
+state IN_SSL_TRIPLE_DSTRING:
+'\\"' : # ""
+'"""' : paint(upto, SSL_STRING), => IN_SSL_DEFAULT
+
+# Single-quoted strings are more subtle
+
+state IN_SSL_SSTRING:
+/\\[\r\n]/ : => IN_SSL_SSTRING_LINECONT
+/\\./ : # ""
+/$/ : paint(upto, SSL_STRING), => IN_SSL_DEFAULT  # No EOLString in UDL
+"'" : paint(upto, SSL_STRING), => IN_SSL_DEFAULT
+
+state IN_SSL_DSTRING:
+/\\[\r\n]/ : => IN_SSL_DSTRING_LINECONT
+/\\./ : # ""
+/$/ : paint(upto, SSL_STRING), => IN_SSL_DEFAULT  # No EOLString in UDL
+'"' : paint(upto, SSL_STRING), => IN_SSL_DEFAULT
+
+# Work around the single-line match limit.
+
+state IN_SSL_SSTRING_LINECONT:
+/\\[\r\n]/ : #stay
+/\\./ : => IN_SSL_SSTRING
+"'" : paint(include, SSL_STRING), => IN_SSL_DEFAULT
+/./ : => IN_SSL_SSTRING
+/^$/ : paint(upto, SSL_STRING), => IN_SSL_DEFAULT # End empty lines here
+
+state IN_SSL_DSTRING_LINECONT:
+/\\[\r\n]/ : #stay
+/\\./ : => IN_SSL_DSTRING
+'"' : paint(include, SSL_STRING), => IN_SSL_DEFAULT
+/./ : => IN_SSL_DSTRING
+/^$/ : paint(upto, SSL_STRING), => IN_SSL_DEFAULT # End empty lines here
+
+
+
+
+
+################ Fold info ################
+
+fold "{" SSL_OPERATOR +
+fold "}" SSL_OPERATOR -
+fold "[" SSL_OPERATOR +
+fold "]" SSL_OPERATOR -
+fold "(" SSL_OPERATOR +
+fold ")" SSL_OPERATOR -
+
+fold "{{{" SSL_COMMENT +
+fold "}}}" SSL_COMMENT -
+
+fold "{{{" SSL_COMMENTBLOCK +
+fold "}}}" SSL_COMMENTBLOCK -
